@@ -408,10 +408,24 @@
                 if (response.ok) {
                     // Complete progress
                     progressFill.style.width = '100%';
-                    setTimeout(() => {
-                        // Redirect to results page
-                        window.location.href = '/results';
-                    }, 500);
+                    
+                    // Check response type
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        // JSON response - handle large dataset
+                        const data = await response.json();
+                        if (data.success) {
+                            // Show success message and redirect
+                            setTimeout(() => {
+                                window.location.href = data.redirect_url || '/results';
+                            }, 1000);
+                        }
+                    } else {
+                        // HTML response - redirect to results page
+                        setTimeout(() => {
+                            window.location.href = '/results';
+                        }, 500);
+                    }
                 } else {
                     throw new Error('Upload failed');
                 }

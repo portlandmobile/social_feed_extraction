@@ -88,6 +88,11 @@ class LinkedInDataExtractor:
         
         logger.info(f"Found {len(post_containers)} post containers")
         
+        # Debug: Log the first few containers to see what we're working with
+        if post_containers:
+            logger.info(f"First container classes: {post_containers[0].get('class', 'No class')}")
+            logger.info(f"First container text preview: {str(post_containers[0])[:200]}...")
+        
         for i, post in enumerate(post_containers):
             try:
                 # Extract Name with multiple fallback strategies
@@ -135,8 +140,8 @@ class LinkedInDataExtractor:
         clean_text = soup.get_text(separator='\n', strip=True)
         
         # Truncate if too long (AI APIs have token limits)
-        if len(clean_text) > 10000:
-            clean_text = clean_text[:10000] + "..."
+        if len(clean_text) > 1000000:
+            clean_text = clean_text[:1000000] + "..."
         
         prompt = f"""
         Extract LinkedIn post information from the following HTML content. 
@@ -156,17 +161,19 @@ class LinkedInDataExtractor:
         """
         
         try:
+            logger.info(f"Calling OpenAI API with {len(clean_text)} characters of text")
             response = self.openai_client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-5-mini",
                 messages=[
                     {"role": "system", "content": "You are an expert at extracting structured data from LinkedIn posts. Return valid JSON only."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.1,
-                max_tokens=2000
+                temperature=1,
+                max_completion_tokens=2000
             )
             
             ai_data = json.loads(response.choices[0].message.content)
+            logger.info(f"OpenAI returned {len(ai_data)} data items")
             
             # Add metadata
             for item in ai_data:
