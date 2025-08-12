@@ -43,6 +43,22 @@ class ResultsDatabase:
                     )
                 ''')
                 
+                # Create enhanced data table for AI-enhanced results
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS enhanced_data (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        result_id INTEGER NOT NULL,
+                        name TEXT,
+                        title TEXT,
+                        period TEXT,
+                        details TEXT,
+                        company TEXT,
+                        location TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (result_id) REFERENCES processing_results(id) ON DELETE CASCADE
+                    )
+                ''')
+                
                 # Create index for faster lookups
                 cursor.execute('''
                     CREATE INDEX IF NOT EXISTS idx_filename_timestamp 
@@ -53,6 +69,12 @@ class ResultsDatabase:
                 cursor.execute('''
                     CREATE INDEX IF NOT EXISTS idx_expires_at 
                     ON processing_results(expires_at)
+                ''')
+                
+                # Create index for enhanced data lookups
+                cursor.execute('''
+                    CREATE INDEX IF NOT EXISTS idx_enhanced_result_id 
+                    ON enhanced_data(result_id)
                 ''')
                 
                 conn.commit()
@@ -94,6 +116,91 @@ class ResultsDatabase:
         except Exception as e:
             logger.error(f"Error storing results in database: {e}")
             raise
+    
+    def store_enhanced_data(self, result_id: str, enhanced_data: List[Dict[str, str]]) -> bool:
+        """Store enhanced data (with Company and Location) in the enhanced_data table."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                # First, clear any existing enhanced data for this result
+                cursor.execute('DELETE FROM enhanced_data WHERE result_id = ?', (result_id,))
+                
+                # Insert the enhanced data
+                for record in enhanced_data:
+                    cursor.execute('''
+                        INSERT INTO enhanced_data 
+                        (result_id, name, title, period, details, company, location)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        result_id,
+                        record.get('Name', ''),
+                        record.get('Title', ''),
+                        record.get('Period', ''),
+                        record.get('Details', ''),
+                        record.get('Company', ''),
+                        record.get('Location', '')
+                    ))
+                
+                conn.commit()
+                logger.info(f"Enhanced data stored successfully for result ID: {result_id}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error storing enhanced data: {e}")
+            return False
+    
+    def get_enhanced_data(self, result_id: str) -> Optional[List[Dict[str, str]]]:
+        """Retrieve enhanced data from the enhanced_data table."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT name, title, period, details, company, location
+                    FROM enhanced_data 
+                    WHERE result_id = ?
+                    ORDER BY id
+                ''', (result_id,))
+                
+                rows = cursor.fetchall()
+                if rows:
+                    enhanced_data = []
+                    for row in rows:
+                        name, title, period, details, company, location = row
+                        enhanced_data.append({
+                            'Name': name or '',
+                            'Title': title or '',
+                            'Period': period or '',
+                            'Details': details or '',
+                            'Company': company or '',
+                            'Location': location or ''
+                        })
+                    
+                    logger.info(f"Retrieved {len(enhanced_data)} enhanced records for result ID: {result_id}")
+                    return enhanced_data
+                else:
+                    logger.warning(f"No enhanced data found for result ID: {result_id}")
+                    return None
+                    
+        except Exception as e:
+            logger.error(f"Error retrieving enhanced data: {e}")
+            return None
+    
+    def has_enhanced_data(self, result_id: str) -> bool:
+        """Check if enhanced data exists for a given result ID."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('SELECT COUNT(*) FROM enhanced_data WHERE result_id = ?', (result_id,))
+                count = cursor.fetchone()[0]
+                
+                return count > 0
+                
+        except Exception as e:
+            logger.error(f"Error checking enhanced data: {e}")
+            return False
     
     def retrieve_results(self, filename: str, timestamp: str) -> Optional[Dict[str, Any]]:
         """Retrieve processing results from the database."""

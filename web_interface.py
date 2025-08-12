@@ -23,11 +23,25 @@ MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 # Ensure upload directory exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Temporary file cleanup
+def cleanup_temp_file(filepath):
+    """Clean up temporary file after sending."""
+    try:
+        if os.path.exists(filepath):
+            os.unlink(filepath)
+            logger.info(f"Cleaned up temporary file: {filepath}")
+    except Exception as e:
+        logger.warning(f"Failed to cleanup temporary file {filepath}: {e}")
+
 # Initialize the AI agent (will be recreated for each request)
-def create_ai_agent(openai_api_key=None):
+def create_ai_agent(openai_api_key=None, gemini_api_key=None, ai_model="chatgpt"):
     """Create a fresh AI agent instance for each request."""
     from ai_agent import LinkedInDataExtractor
-    return LinkedInDataExtractor(openai_api_key=openai_api_key)
+    return LinkedInDataExtractor(
+        openai_api_key=openai_api_key, 
+        gemini_api_key=gemini_api_key,
+        ai_model=ai_model
+    )
 
 def allowed_file(filename):
     """Check if file extension is allowed."""
@@ -80,21 +94,33 @@ def upload_file():
         
         file.save(temp_path)
         
-        # Get parsing method and API key
+        # Get parsing method and API keys
         parsing_method = request.form.get('parsing_method', 'traditional')
         openai_api_key = request.form.get('openai_api_key', '')
+        gemini_api_key = request.form.get('gemini_api_key', '')
+        ai_model = request.form.get('ai_model', 'chatgpt')
         
         # Create a fresh AI agent instance for each request
-        ai_agent_instance = create_ai_agent(openai_api_key if parsing_method == 'ai' else None)
+        ai_agent_instance = create_ai_agent(
+            openai_api_key=openai_api_key if parsing_method == 'ai' and ai_model == 'chatgpt' else None,
+            gemini_api_key=gemini_api_key if parsing_method == 'ai' and ai_model == 'gemini' else None,
+            ai_model=ai_model if parsing_method == 'ai' else 'chatgpt'
+        )
         
         # Process the file with chosen method
-        logger.info(f"Processing uploaded file: {temp_path} with {parsing_method} parsing")
+        logger.info(f"Processing uploaded file: {temp_path} with {parsing_method} parsing using {ai_model}")
         logger.info(f"File size: {os.path.getsize(temp_path)} bytes")
-        results = ai_agent_instance.process_mhtml_file(temp_path, use_ai=(parsing_method == 'ai'))
+        results = ai_agent_instance.process_mhtml_file(temp_path, use_ai=(parsing_method == 'ai'), ai_model=ai_model)
         #logger.info(f"Processing complete. Results: {results}")
         logger.info(f"Results success: {results.get('success')}")
         logger.info(f"Results keys: {list(results.keys()) if isinstance(results, dict) else 'Not a dict'}")
         logger.info(f"Data count: {len(results.get('extracted_data', [])) if isinstance(results, dict) else 'No extracted_data'}")
+        
+        # Clean up temporary file
+        try:
+            os.remove(temp_path)
+        except:
+            pass
         
         if results.get("success"):
             # Check if the data is too large for session storage
@@ -110,9 +136,10 @@ def upload_file():
             
             flash('File processed successfully!', 'success')
             
-            # Check if data is too large for session cookies (anything over ~50 records)
-            if extracted_data_count > 50:  # Lowered threshold for cookie safety
-                logger.info(f"Large dataset detected ({extracted_data_count} records), using database storage approach")
+            # Check if data is too large for session cookies or if AI enhancement was used
+            # Use database storage for AI-enhanced data or datasets over 20 records
+            if extracted_data_count > 20 or parsing_method == 'ai':
+                logger.info(f"Using database storage approach: {extracted_data_count} records, AI enhancement: {parsing_method == 'ai'}")
                 
                 # Store results in database instead of session
                 from database import get_database
@@ -130,6 +157,36 @@ def upload_file():
                     
                     logger.info(f"Results stored in database with ID: {result_id}")
                     
+                    # If AI enhancement was used, store enhanced data in separate table
+                    if parsing_method == 'ai' and results.get('extracted_data'):
+                        enhanced_data = results.get('extracted_data')
+                        logger.info(f"AI enhancement detected. Checking for enhanced data...")
+                        logger.info(f"Enhanced data type: {type(enhanced_data)}")
+                        logger.info(f"Enhanced data length: {len(enhanced_data) if enhanced_data else 'None'}")
+                        
+                        if enhanced_data and len(enhanced_data) > 0:
+                            first_record = enhanced_data[0]
+                            logger.info(f"First record keys: {list(first_record.keys()) if isinstance(first_record, dict) else 'Not a dict'}")
+                            
+                            # Check if this is enhanced data (has Company and Location fields)
+                            if isinstance(first_record, dict) and 'Company' in first_record and 'Location' in first_record:
+                                logger.info("Enhanced data detected with Company and Location fields")
+                                logger.info(f"Sample Company: {first_record.get('Company', 'N/A')}")
+                                logger.info(f"Sample Location: {first_record.get('Location', 'N/A')}")
+                                
+                                if db.store_enhanced_data(result_id, enhanced_data):
+                                    logger.info(f"Enhanced data stored successfully in database with {len(enhanced_data)} records")
+                                    logger.info(f"Enhanced data sample: Company='{first_record.get('Company', 'N/A')}', Location='{first_record.get('Location', 'N/A')}'")
+                                else:
+                                    logger.warning("Failed to store enhanced data in database")
+                            else:
+                                logger.info("No Company/Location fields detected in enhanced data")
+                                logger.info(f"Available fields: {list(first_record.keys()) if isinstance(first_record, dict) else 'Not a dict'}")
+                        else:
+                            logger.info("No enhanced data available for storage")
+                    else:
+                        logger.info(f"AI enhancement not used (parsing_method: {parsing_method})")
+                    
                     # Store only minimal metadata in session
                     session['upload_data'] = {
                         'filename': filename,
@@ -138,6 +195,8 @@ def upload_file():
                         'processing_method': 'database',
                         'result_id': result_id
                     }
+                    
+                    logger.info(f"Session metadata stored: filename={filename}, result_id={result_id}, processing_method=database")
                     
                     # Return JSON response that JavaScript can handle
                     return jsonify({
@@ -228,6 +287,17 @@ def results():
                     if results:
                         logger.info(f"Results retrieved successfully from database")
                         
+                        # Check if enhanced data exists and use it instead of raw results
+                        enhanced_data = db.get_enhanced_data(result_id)
+                        if enhanced_data:
+                            logger.info(f"Enhanced data found with {len(enhanced_data)} records")
+                            # Replace the extracted_data with enhanced data
+                            results['extracted_data'] = enhanced_data
+                            # Update the data count
+                            results['summary']['total_posts'] = len(enhanced_data)
+                        else:
+                            logger.info("No enhanced data found, using original extracted data")
+                        
                         # Render results template
                         return render_template('results.html', data={
                             'filename': upload_data.get('filename'),
@@ -281,9 +351,19 @@ def api_process():
         
         file.save(temp_path)
         
+        # Get API keys and model from request
+        openai_api_key = request.form.get('openai_api_key', '')
+        gemini_api_key = request.form.get('gemini_api_key', '')
+        ai_model = request.form.get('ai_model', 'chatgpt')
+        use_ai = request.form.get('use_ai', 'false').lower() == 'true'
+        
         # Process the file with a fresh AI agent instance
-        ai_agent_instance = create_ai_agent()
-        results = ai_agent_instance.process_mhtml_file(temp_path)
+        ai_agent_instance = create_ai_agent(
+            openai_api_key=openai_api_key if use_ai and ai_model == 'chatgpt' else None,
+            gemini_api_key=gemini_api_key if use_ai and ai_model == 'gemini' else None,
+            ai_model=ai_model if use_ai else 'chatgpt'
+        )
+        results = ai_agent_instance.process_mhtml_file(temp_path, use_ai=use_ai, ai_model=ai_model)
         
         # Clean up temporary file
         try:
@@ -297,75 +377,277 @@ def api_process():
         logger.error(f"Error in api_process: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/export/csv')
+@app.route('/export/csv', methods=['POST'])
 def export_csv():
     """Export data as CSV."""
     try:
-        # Get data from request parameters
-        data_json = request.args.get('data')
+        # Get data from POST request
+        data_json = request.form.get('data')
         if not data_json:
-            flash('No data to export', 'error')
-            return redirect(url_for('index'))
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
         
         data = json.loads(data_json)
         extracted_data = data.get('extracted_data', [])
         
         if not extracted_data:
-            flash('No data to export', 'error')
-            return redirect(url_for('index'))
+            return jsonify({'success': False, 'error': 'No data to export'}), 400
         
-        # Export to CSV
+        # Create CSV content
+        import pandas as pd
+        
+        # Ensure all required columns exist
+        columns = ['Name', 'Title', 'Period', 'Details', 'Company', 'Location']
+        
+        df = pd.DataFrame(extracted_data)
+        
+        # Add missing columns if they don't exist
+        for col in columns:
+            if col not in df.columns:
+                df[col] = 'N/A'
+        
+        # Reorder columns to ensure consistent output
+        df = df[columns]
+        
+        # Create CSV content
+        csv_content = df.to_csv(index=False)
+        
+        # Create filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"linkedin_data_{timestamp}.csv"
-        ai_agent_instance = create_ai_agent()
-        filepath = ai_agent_instance.export_to_csv(extracted_data, filename)
+        
+        # Create temporary file
+        import tempfile
+        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
+        temp_file.write(csv_content)
+        temp_file.close()
         
         # Send file to user
-        return send_file(
-            filepath,
+        response = send_file(
+            temp_file.name,
             as_attachment=True,
             download_name=filename,
             mimetype='text/csv'
         )
         
+        # Clean up temporary file after response is sent
+        @response.call_on_close
+        def cleanup():
+            cleanup_temp_file(temp_file.name)
+        
+        return response
+        
     except Exception as e:
         logger.error(f"Error in export_csv: {e}")
-        flash(f'Error exporting CSV: {str(e)}', 'error')
-        return redirect(url_for('index'))
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/export/json')
-def export_json():
-    """Export data as JSON."""
+@app.route('/export/csv-session', methods=['GET'])
+def export_csv_session():
+    """Export data as CSV using session data (for large datasets)."""
     try:
-        # Get data from request parameters
-        data_json = request.args.get('data')
-        if not data_json:
-            flash('No data to export', 'error')
+        # Get data from session
+        if 'upload_data' not in session:
+            flash('No data available for export', 'error')
             return redirect(url_for('index'))
         
-        data = json.loads(data_json)
-        extracted_data = data.get('extracted_data', [])
+        upload_data = session['upload_data']
+        
+        # If data is stored in database, retrieve it
+        if upload_data.get('processing_method') == 'database':
+            from database import get_database
+            db = get_database()
+            results = db.retrieve_results(upload_data['filename'], upload_data['timestamp'])
+            if results:
+                # Check if enhanced data exists and use it instead
+                result_id = upload_data.get('result_id')
+                if result_id:
+                    enhanced_data = db.get_enhanced_data(result_id)
+                    if enhanced_data:
+                        logger.info(f"Using enhanced data with {len(enhanced_data)} records for CSV export")
+                        extracted_data = enhanced_data
+                    else:
+                        logger.info("No enhanced data found, using original extracted data")
+                        extracted_data = results.get('extracted_data', [])
+                else:
+                    extracted_data = results.get('extracted_data', [])
+            else:
+                flash('Data not found in database', 'error')
+                return redirect(url_for('index'))
+        else:
+            # Get data from session
+            results = session.get('upload_data', {}).get('results', {})
+            extracted_data = results.get('extracted_data', [])
         
         if not extracted_data:
             flash('No data to export', 'error')
             return redirect(url_for('index'))
         
-        # Export to JSON
+        # Create CSV content
+        import pandas as pd
+        
+        # Ensure all required columns exist
+        columns = ['Name', 'Title', 'Period', 'Details', 'Company', 'Location']
+        
+        df = pd.DataFrame(extracted_data)
+        
+        # Add missing columns if they don't exist
+        for col in columns:
+            if col not in df.columns:
+                df[col] = 'N/A'
+        
+        # Reorder columns to ensure consistent output
+        df = df[columns]
+        
+        # Create CSV content
+        csv_content = df.to_csv(index=False)
+        
+        # Create filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"linkedin_data_{timestamp}.json"
-        ai_agent_instance = create_ai_agent()
-        filepath = ai_agent_instance.export_to_json(extracted_data, filename)
+        filename = f"linkedin_data_{timestamp}.csv"
+        
+        # Create temporary file
+        import tempfile
+        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
+        temp_file.write(csv_content)
+        temp_file.close()
         
         # Send file to user
-        return send_file(
-            filepath,
+        response = send_file(
+            temp_file.name,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='text/csv'
+        )
+        
+        # Clean up temporary file after response is sent
+        @response.call_on_close
+        def cleanup():
+            cleanup_temp_file(temp_file.name)
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error in export_csv_session: {e}")
+        flash(f'Error exporting CSV: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/export/json', methods=['POST'])
+def export_json():
+    """Export data as JSON."""
+    try:
+        # Get data from POST request
+        data_json = request.form.get('data')
+        if not data_json:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        data = json.loads(data_json)
+        extracted_data = data.get('extracted_data', [])
+        
+        if not extracted_data:
+            return jsonify({'success': False, 'error': 'No data to export'}), 400
+        
+        # Create JSON content
+        json_content = json.dumps(extracted_data, indent=2, ensure_ascii=False)
+        
+        # Create filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"linkedin_data_{timestamp}.json"
+        
+        # Create temporary file
+        import tempfile
+        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+        temp_file.write(json_content)
+        temp_file.close()
+        
+        # Send file to user
+        response = send_file(
+            temp_file.name,
             as_attachment=True,
             download_name=filename,
             mimetype='application/json'
         )
         
+        # Clean up temporary file after response is sent
+        @response.call_on_close
+        def cleanup():
+            cleanup_temp_file(temp_file.name)
+        
+        return response
+        
     except Exception as e:
         logger.error(f"Error in export_json: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/export/json-session', methods=['GET'])
+def export_json_session():
+    """Export data as JSON using session data (for large datasets)."""
+    try:
+        # Get data from session
+        if 'upload_data' not in session:
+            flash('No data available for export', 'error')
+            return redirect(url_for('index'))
+        
+        upload_data = session['upload_data']
+        
+        # If data is stored in database, retrieve it
+        if upload_data.get('processing_method') == 'database':
+            from database import get_database
+            db = get_database()
+            results = db.retrieve_results(upload_data['filename'], upload_data['timestamp'])
+            if results:
+                # Check if enhanced data exists and use it instead
+                result_id = upload_data.get('result_id')
+                if result_id:
+                    enhanced_data = db.get_enhanced_data(result_id)
+                    if enhanced_data:
+                        logger.info(f"Using enhanced data with {len(enhanced_data)} records for JSON export")
+                        extracted_data = enhanced_data
+                    else:
+                        logger.info("No enhanced data found, using original extracted data")
+                        extracted_data = results.get('extracted_data', [])
+                else:
+                    extracted_data = results.get('extracted_data', [])
+            else:
+                flash('Data not found in database', 'error')
+                return redirect(url_for('index'))
+        else:
+            # Get data from session
+            results = session.get('upload_data', {}).get('results', {})
+            extracted_data = results.get('extracted_data', [])
+        
+        if not extracted_data:
+            flash('No data available for export', 'error')
+            return redirect(url_for('index'))
+        
+        # Create JSON content
+        json_content = json.dumps(extracted_data, indent=2, ensure_ascii=False)
+        
+        # Create filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"linkedin_data_{timestamp}.json"
+        
+        # Create temporary file
+        import tempfile
+        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+        temp_file.write(json_content)
+        temp_file.close()
+        
+        # Send file to user
+        response = send_file(
+            temp_file.name,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/json'
+        )
+        
+        # Clean up temporary file after response is sent
+        @response.call_on_close
+        def cleanup():
+            cleanup_temp_file(temp_file.name)
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error in export_json_session: {e}")
         flash(f'Error exporting JSON: {str(e)}', 'error')
         return redirect(url_for('index'))
 

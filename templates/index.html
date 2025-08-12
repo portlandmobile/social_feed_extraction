@@ -178,10 +178,10 @@
                             </div>
                             <h4>Drag & Drop your MHTML file here</h4>
                             <p class="text-muted">or click to browse</p>
-                            <input type="file" id="fileInput" class="file-input" accept=".mhtml,.mht">
-                            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
-                                <i class="fas fa-folder-open"></i> Choose File
-                            </button>
+                                            <input type="file" id="fileInput" class="file-input" accept=".mhtml,.mht">
+                <button class="btn btn-primary" id="chooseFileBtn">
+                    <i class="fas fa-folder-open"></i> Choose File
+                </button>
                         </div>
                         
                         <!-- File Info -->
@@ -203,19 +203,45 @@
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="parsingMethod" id="traditionalParsing" value="traditional" checked>
                                         <label class="form-check-label" for="traditionalParsing">
-                                            <strong>Traditional Parsing</strong> - Fast, rule-based extraction (Recommended)
+                                            <strong>Traditional Parsing Only</strong> - Fast, rule-based extraction (Recommended)
                                         </label>
                                     </div>
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="parsingMethod" id="aiParsing" value="ai">
                                         <label class="form-check-label" for="aiParsing">
-                                            <strong>AI-Powered Parsing</strong> - Advanced GPT-4 extraction (Requires OpenAI API Key)
+                                            <strong>Traditional + AI Enhancement</strong> - Traditional parsing enhanced with AI insights
                                         </label>
                                     </div>
-                                    <div id="apiKeyInput" class="mt-3" style="display: none;">
-                                        <label for="openaiKey" class="form-label">OpenAI API Key:</label>
-                                        <input type="password" class="form-control" id="openaiKey" placeholder="Enter your OpenAI API key">
-                                        <small class="form-text text-muted">Your API key is used only for this session and is not stored.</small>
+                                    
+                                    <!-- AI Model Selection -->
+                                    <div id="aiModelSelection" class="mt-3" style="display: none;">
+                                        <h6 class="card-title"><i class="fas fa-robot"></i> AI Model Selection</h6>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="aiModel" id="chatgptModel" value="chatgpt" checked>
+                                            <label class="form-check-label" for="chatgptModel">
+                                                <strong>ChatGPT (OpenAI)</strong> - GPT-4 powered enhancement
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="aiModel" id="geminiModel" value="gemini">
+                                            <label class="form-check-label" for="geminiModel">
+                                                <strong>Gemini (Google)</strong> - Gemini 2.0 Flash Lite enhancement
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- API Key Inputs -->
+                                    <div id="apiKeyInputs" class="mt-3" style="display: none;">
+                                        <div id="openaiKeyInput" class="mb-3">
+                                            <label for="openaiKey" class="form-label">OpenAI API Key:</label>
+                                            <input type="password" class="form-control" id="openaiKey" name="openai_api_key" placeholder="Enter your OpenAI API key">
+                                            <small class="form-text text-muted">Your API key is used only for this session and is not stored.</small>
+                                        </div>
+                                        <div id="geminiKeyInput" class="mb-3" style="display: none;">
+                                            <label for="geminiKey" class="form-label">Google API Key:</label>
+                                            <input type="password" class="form-control" id="geminiKey" name="gemini_api_key" placeholder="Enter your Google API key">
+                                            <small class="form-text text-muted">Your API key is used only for this session and is not stored.</small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -251,8 +277,8 @@
                             <div class="feature-icon">
                                 <i class="fas fa-brain"></i>
                             </div>
-                            <h6>Intelligent Parsing</h6>
-                            <p class="text-muted">Multiple fallback strategies for robust data extraction</p>
+                            <h6>Two-Stage Processing</h6>
+                            <p class="text-muted">Traditional parsing + optional AI enhancement for deeper insights</p>
                         </div>
                     </div>
                     <div class="col-md-3">
@@ -291,6 +317,7 @@
     <script>
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
+        const chooseFileBtn = document.getElementById('chooseFileBtn');
         const fileInfo = document.getElementById('fileInfo');
         const fileName = document.getElementById('fileName');
         const fileSize = document.getElementById('fileSize');
@@ -298,8 +325,11 @@
         const loading = document.getElementById('loading');
         const progressFill = document.getElementById('progressFill');
         const parsingOptions = document.getElementById('parsingOptions');
-        const apiKeyInput = document.getElementById('apiKeyInput');
+        const apiKeyInputs = document.getElementById('apiKeyInputs');
         const aiParsingRadio = document.getElementById('aiParsing');
+        const aiModelSelection = document.getElementById('aiModelSelection');
+        const openaiKeyInput = document.getElementById('openaiKeyInput');
+        const geminiKeyInput = document.getElementById('geminiKeyInput');
         
         let selectedFile = null;
         
@@ -326,10 +356,19 @@
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 handleFile(e.target.files[0]);
+                // Clear the file input to allow selecting the same file again
+                e.target.value = '';
             }
         });
         
-        // Click to upload
+        // Choose file button click
+        chooseFileBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fileInput.click();
+        });
+        
+        // Click to upload (upload area)
         uploadArea.addEventListener('click', () => {
             fileInput.click();
         });
@@ -337,10 +376,27 @@
         // Handle parsing method selection
         aiParsingRadio.addEventListener('change', () => {
             if (aiParsingRadio.checked) {
-                apiKeyInput.style.display = 'block';
+                apiKeyInputs.style.display = 'block';
+                aiModelSelection.style.display = 'block';
             } else {
-                apiKeyInput.style.display = 'none';
+                apiKeyInputs.style.display = 'none';
+                aiModelSelection.style.display = 'none';
             }
+        });
+
+        // Handle AI model selection
+        document.querySelectorAll('input[name="aiModel"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (radio.checked) {
+                    if (radio.value === 'chatgpt') {
+                        geminiKeyInput.style.display = 'none';
+                        openaiKeyInput.style.display = 'block';
+                    } else if (radio.value === 'gemini') {
+                        openaiKeyInput.style.display = 'none';
+                        geminiKeyInput.style.display = 'block';
+                    }
+                }
+            });
         });
         
         function handleFile(file) {
@@ -364,6 +420,19 @@
             fileInfo.style.display = 'block';
             parsingOptions.style.display = 'block';
             uploadBtn.style.display = 'inline-block';
+            
+            // Log for debugging
+            console.log('File selected:', file.name, 'Size:', file.size);
+        }
+        
+        // Function to reset file selection
+        function resetFileSelection() {
+            selectedFile = null;
+            fileInfo.style.display = 'none';
+            parsingOptions.style.display = 'none';
+            uploadBtn.style.display = 'none';
+            loading.style.display = 'none';
+            progressFill.style.width = '0%';
         }
         
         // Upload button click
@@ -373,18 +442,32 @@
             // Get parsing method and API key
             const parsingMethod = document.querySelector('input[name="parsingMethod"]:checked').value;
             const openaiKey = document.getElementById('openaiKey').value;
+            const geminiKey = document.getElementById('geminiKey').value;
             
             // Validate AI parsing requirements
-            if (parsingMethod === 'ai' && !openaiKey.trim()) {
-                alert('Please enter your OpenAI API key for AI-powered parsing.');
-                return;
+            if (parsingMethod === 'ai') {
+                if (document.querySelector('input[name="aiModel"]:checked').value === 'chatgpt' && !openaiKey.trim()) {
+                    alert('Please enter your OpenAI API key for AI-powered parsing.');
+                    return;
+                }
+                if (document.querySelector('input[name="aiModel"]:checked').value === 'gemini' && !geminiKey.trim()) {
+                    alert('Please enter your Google API key for AI-powered parsing.');
+                    return;
+                }
             }
             
             const formData = new FormData();
             formData.append('file', selectedFile);
             formData.append('parsing_method', parsingMethod);
-            if (openaiKey.trim()) {
-                formData.append('openai_api_key', openaiKey);
+            if (parsingMethod === 'ai') {
+                const aiModel = document.querySelector('input[name="aiModel"]:checked').value;
+                formData.append('ai_model', aiModel);
+                if (aiModel === 'chatgpt' && openaiKey.trim()) {
+                    formData.append('openai_api_key', openaiKey);
+                }
+                if (aiModel === 'gemini' && geminiKey.trim()) {
+                    formData.append('gemini_api_key', geminiKey);
+                }
             }
             
             // Show loading state
@@ -434,9 +517,7 @@
                 alert('An error occurred during upload. Please try again.');
                 
                 // Reset UI
-                loading.style.display = 'none';
-                uploadBtn.style.display = 'inline-block';
-                progressFill.style.width = '0%';
+                resetFileSelection();
             } finally {
                 clearInterval(progressInterval);
             }
