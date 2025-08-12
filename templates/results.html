@@ -181,6 +181,55 @@
             white-space: normal;
             word-wrap: break-word;
         }
+        
+        .details-cell {
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        .details-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .expand-btn {
+            flex-shrink: 0;
+            padding: 2px 6px;
+            font-size: 0.75rem;
+            margin-top: 2px;
+        }
+        
+        .tooltip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            max-width: 400px;
+            word-wrap: break-word;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .tooltip.show {
+            opacity: 1;
+        }
+        
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 20px;
+            border: 5px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.9);
+        }
     </style>
 </head>
 <body>
@@ -205,6 +254,7 @@
                 <a href="/" class="btn btn-outline-light">
                     <i class="fas fa-arrow-left"></i> Process Another File
                 </a>
+
             </div>
             
             <!-- Stats Section -->
@@ -274,14 +324,14 @@
                                 <th>Name</th>
                                 <th>Title</th>
                                 <th>Period</th>
-                                <th>Details</th>
+                                <th>Details <small class="text-muted">(hover for preview, click ± to expand)</small></th>
                                 <th>Company</th>
                                 <th>Location</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for entry in data.results.extracted_data %}
-                            <tr class="expandable" onclick="toggleRow(this)">
+                            <tr class="expandable">
                                 <td>{{ entry.Name }}</td>
                                 <td>
                                     <div class="text-truncate" title="{{ entry.Title }}">
@@ -290,8 +340,18 @@
                                 </td>
                                 <td>{{ entry.Period }}</td>
                                 <td>
-                                    <div class="text-truncate" title="{{ entry.Details }}">
-                                        {{ entry.Details }}
+                                    <div class="details-cell">
+                                        <div class="details-content text-truncate" 
+                                             data-full-text="{{ entry.Details }}"
+                                             onmouseenter="showTooltip(this, event)" 
+                                             onmouseleave="hideTooltip()">
+                                            {{ entry.Details }}
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-primary expand-btn" 
+                                                onclick="toggleDetails(this, event)" 
+                                                title="Click to expand/collapse">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
                                     </div>
                                 </td>
                                 <td>
@@ -355,8 +415,93 @@
         </div>
     </div>
 
+    <!-- Tooltip element -->
+    <div id="tooltip" class="tooltip"></div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        let tooltipTimeout;
+        let currentTooltip = null;
+        
+
+        
+        function toggleDetails(button, event) {
+            event.stopPropagation(); // Prevent row expansion
+            
+            const detailsCell = button.closest('.details-cell');
+            const detailsContent = detailsCell.querySelector('.details-content');
+            const icon = button.querySelector('i');
+            
+            if (detailsContent.classList.contains('full-text')) {
+                // Collapse
+                detailsContent.classList.remove('full-text');
+                detailsContent.classList.add('text-truncate');
+                icon.classList.remove('fa-minus');
+                icon.classList.add('fa-plus');
+                button.title = 'Click to expand';
+            } else {
+                // Expand
+                detailsContent.classList.remove('text-truncate');
+                detailsContent.classList.add('full-text');
+                icon.classList.remove('fa-plus');
+                icon.classList.add('fa-minus');
+                button.title = 'Click to collapse';
+            }
+        }
+        
+        function showTooltip(element, event) {
+            const fullText = element.getAttribute('data-full-text');
+            
+            if (!fullText || fullText.length < 50) {
+                return;
+            }
+            
+            tooltipTimeout = setTimeout(() => {
+                const tooltip = document.getElementById('tooltip');
+                if (!tooltip) {
+                    return;
+                }
+                
+                tooltip.textContent = fullText;
+                
+                // Better positioning logic
+                const rect = element.getBoundingClientRect();
+                const tooltipWidth = 400; // Max width of tooltip
+                const tooltipHeight = 100; // Approximate height
+                
+                // Calculate position to keep tooltip on screen
+                let left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+                let top = rect.top - tooltipHeight - 20; // Above the element
+                
+                // Ensure tooltip stays within viewport
+                if (left < 10) left = 10;
+                if (left + tooltipWidth > window.innerWidth - 10) {
+                    left = window.innerWidth - tooltipWidth - 10;
+                }
+                if (top < 10) {
+                    // If above doesn't fit, show below
+                    top = rect.bottom + 20;
+                }
+                
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+                tooltip.classList.add('show');
+                currentTooltip = tooltip;
+                
+            }, 1000); // 1 second delay
+        }
+        
+        function hideTooltip() {
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
+                tooltipTimeout = null;
+            }
+            if (currentTooltip) {
+                currentTooltip.classList.remove('show');
+                currentTooltip = null;
+            }
+        }
+        
         function toggleRow(row) {
             const cells = row.querySelectorAll('.text-truncate');
             cells.forEach(cell => {
@@ -375,6 +520,13 @@
             const rows = document.querySelectorAll('.expandable');
             rows.forEach(row => {
                 row.style.cursor = 'pointer';
+            });
+            
+            // Hide tooltip when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!event.target.closest('.details-cell')) {
+                    hideTooltip();
+                }
             });
         });
     </script>
