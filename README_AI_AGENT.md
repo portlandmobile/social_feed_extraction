@@ -5,16 +5,16 @@ An intelligent, web-based AI agent that automatically extracts names, titles, pe
 ## 🚀 Features
 
 ### Core Capabilities
-- **Intelligent MHTML Parsing**: Multiple fallback strategies for robust data extraction
-- **AI-Powered Parsing**: Optional GPT-4 integration for complex or non-standard formats
-- **AI-Powered Analysis**: Data quality scoring and pattern recognition
+- **Two-Stage Processing**: Traditional parsing followed by optional AI enhancement
+- **Enhanced Data Extraction**: Names, titles, periods, details, company names, and location/remote status
+- **AI-Powered Enhancement**: Optional GPT-4 or Gemini 2.0 Flash Lite integration for deeper insights
 - **Multiple Export Formats**: CSV, JSON, and online viewing options
 - **Modern Web Interface**: Drag & drop file upload with real-time processing
 - **Secure Processing**: Local file processing with automatic cleanup
 
 ### AI Agent Intelligence
-- **Adaptive Parsing**: Automatically tries multiple HTML selectors for different LinkedIn formats
-- **AI-Powered Parsing**: Optional GPT-4 integration for handling complex or non-standard LinkedIn formats
+- **Two-Stage Processing**: Always starts with traditional parsing for reliability, then optionally enhances with AI
+- **AI Enhancement**: Adds company names and location/remote status to traditional parsing results
 - **Quality Assessment**: Calculates data extraction quality scores
 - **Pattern Recognition**: Identifies common keywords and trends in extracted data
 - **Smart Recommendations**: Provides actionable insights for improving extraction results
@@ -128,6 +128,8 @@ The AI agent uses several fallback strategies to ensure robust data extraction:
 - **Title**: Professional title/description
 - **Period**: Time period or date information
 - **Details**: Post content or additional information
+- **Company**: Company name (AI-enhanced)
+- **Location**: Remote status or specific location (AI-enhanced)
 - **Post_Index**: Sequential post number
 
 ### Export Formats
@@ -142,10 +144,14 @@ The AI agent uses several fallback strategies to ensure robust data extraction:
 - **File Validation**: Type and size restrictions
 - **Secure Filenames**: Sanitized file names to prevent path traversal
 
-## 🤖 OpenAI Integration
+## 🤖 AI Integration
 
 ### AI-Powered Parsing
-The AI agent now supports optional GPT-4 integration for enhanced parsing capabilities:
+The AI agent now supports both OpenAI ChatGPT and Google Gemini for enhanced parsing capabilities:
+
+#### Available AI Models
+- **ChatGPT (OpenAI)**: Uses GPT-4 for optimal extraction quality
+- **Gemini (Google)**: Uses Gemini 2.0 Flash Lite for cost-effective extraction
 
 #### When to Use AI Parsing
 - **Complex Formats**: Non-standard LinkedIn HTML structures
@@ -153,23 +159,30 @@ The AI agent now supports optional GPT-4 integration for enhanced parsing capabi
 - **Advanced Extraction**: Need for more nuanced data interpretation
 
 #### Setup Requirements
+
+##### ChatGPT (OpenAI)
 1. **OpenAI API Key**: Get your key from [OpenAI Platform](https://platform.openai.com/)
 2. **API Credits**: Ensure you have sufficient credits (costs ~$0.06-0.15 per file)
 3. **Internet Connection**: Required for API calls
 
+##### Gemini (Google)
+1. **Google API Key**: Get your key from [Google AI Studio](https://aistudio.google.com/)
+2. **API Credits**: Ensure you have sufficient credits (costs ~$0.01-0.05 per file)
+3. **Internet Connection**: Required for API calls
+
 #### Usage Options
-1. **Web Interface**: Select "AI-Powered Parsing" and enter your API key
-2. **Environment Variable**: Set `OPENAI_API_KEY` in your `.env` file
-3. **Direct Initialization**: Pass API key to `LinkedInDataExtractor(openai_api_key="...")`
+1. **Web Interface**: Select "AI-Powered Parsing" and choose your preferred model
+2. **Environment Variables**: Set `OPENAI_API_KEY` and/or `GOOGLE_API_KEY` in your `.env` file
+3. **Direct Initialization**: Pass API keys to `LinkedInDataExtractor(openai_api_key="...", gemini_api_key="...", ai_model="...")`
 
 #### Cost Information
-- **Input Tokens**: ~2-5K tokens per typical LinkedIn MHTML file
-- **Cost per File**: Approximately $0.06 - $0.15
-- **Model**: Uses GPT-4 for optimal extraction quality
+- **ChatGPT**: ~2-5K tokens per typical LinkedIn MHTML file (~$0.06 - $0.15 per file)
+- **Gemini**: ~2-5K tokens per typical LinkedIn MHTML file (~$0.01 - $0.05 per file)
+- **Model Selection**: Choose based on your budget and quality requirements
 
 #### Security Notes
 - API keys are never stored or logged
-- All processing is done through OpenAI's secure API
+- All processing is done through secure APIs
 - Consider using environment variables for production deployments
 
 For detailed setup instructions, see `openai_setup.md`.

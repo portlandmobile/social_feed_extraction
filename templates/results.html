@@ -93,6 +93,31 @@
             padding: 2rem;
         }
         
+        .export-section {
+            padding: 2rem;
+            background: #f8f9fa;
+            border-radius: 0 0 20px 20px;
+        }
+        
+        .btn-export {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-export:hover {
+            background: linear-gradient(135deg, #218838, #1e7e34);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+        
         .table-container {
             background: white;
             border-radius: 15px;
@@ -120,28 +145,6 @@
         
         .table tbody tr:hover {
             background: #f8f9fa;
-        }
-        
-        .export-section {
-            padding: 2rem;
-            background: #f8f9fa;
-            border-radius: 0 0 20px 20px;
-            text-align: center;
-        }
-        
-        .btn-export {
-            background: linear-gradient(135deg, #28a745, #20c997);
-            border: none;
-            border-radius: 25px;
-            padding: 12px 30px;
-            font-weight: 600;
-            margin: 0 0.5rem;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-export:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(40, 167, 69, 0.3);
         }
         
         .btn-secondary {
@@ -272,6 +275,8 @@
                                 <th>Title</th>
                                 <th>Period</th>
                                 <th>Details</th>
+                                <th>Company</th>
+                                <th>Location</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -287,6 +292,16 @@
                                 <td>
                                     <div class="text-truncate" title="{{ entry.Details }}">
                                         {{ entry.Details }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="text-truncate" title="{{ entry.Company }}">
+                                        {{ entry.Company }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="text-truncate" title="{{ entry.Location }}">
+                                        {{ entry.Location }}
                                     </div>
                                 </td>
                             </tr>
@@ -307,12 +322,30 @@
                 <p class="text-muted mb-4">Download your extracted data in your preferred format</p>
                 
                 {% if data.results.extracted_data %}
-                <a href="/export/csv?data={{ data.results.extracted_data | tojson | urlencode }}" class="btn btn-export">
+                <!-- For smaller datasets, use POST form -->
+                {% if data.results.extracted_data | length <= 10 %}
+                <form action="/export/csv" method="post" style="display: inline;">
+                    <input type="hidden" name="data" value="{{ data.results | tojson }}">
+                    <button type="submit" class="btn btn-export">
+                        <i class="fas fa-file-csv"></i> Export to CSV
+                    </button>
+                </form>
+                <form action="/export/json" method="post" style="display: inline;">
+                    <input type="hidden" name="data" value="{{ data.results | tojson }}">
+                    <button type="submit" class="btn btn-export">
+                        <i class="fas fa-file-code"></i> Export to JSON
+                    </button>
+                </form>
+                {% else %}
+                <!-- For larger datasets, use session-based export -->
+                <a href="/export/csv-session" class="btn btn-export">
                     <i class="fas fa-file-csv"></i> Export to CSV
                 </a>
-                <a href="/export/json?data={{ data.results.extracted_data | tojson | urlencode }}" class="btn btn-export">
+                <a href="/export/json-session" class="btn btn-export">
                     <i class="fas fa-file-code"></i> Export to JSON
                 </a>
+                <small class="text-muted d-block mt-2">Large dataset detected - using optimized export method</small>
+                {% endif %}
                 {% endif %}
                 
                 <a href="/" class="btn btn-secondary">

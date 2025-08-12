@@ -5,4 +5,5 @@ pandas==2.1.1
 lxml==4.9.3
 html5lib==1.1
 openai==1.3.0
+google-generativeai==0.3.2
 # Database support (SQLite is built into Python, no additional package needed) 
