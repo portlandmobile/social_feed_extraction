@@ -54,6 +54,7 @@ class ResultsDatabase:
                         details TEXT,
                         company TEXT,
                         location TEXT,
+                        hiring TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         FOREIGN KEY (result_id) REFERENCES processing_results(id) ON DELETE CASCADE
                     )
@@ -76,6 +77,14 @@ class ResultsDatabase:
                     CREATE INDEX IF NOT EXISTS idx_enhanced_result_id 
                     ON enhanced_data(result_id)
                 ''')
+                
+                # Check if hiring column exists, add it if it doesn't
+                try:
+                    cursor.execute('SELECT hiring FROM enhanced_data LIMIT 1')
+                except sqlite3.OperationalError:
+                    # Column doesn't exist, add it
+                    logger.info("Adding hiring column to enhanced_data table")
+                    cursor.execute('ALTER TABLE enhanced_data ADD COLUMN hiring TEXT')
                 
                 conn.commit()
                 logger.info("Database initialized successfully")
@@ -130,8 +139,8 @@ class ResultsDatabase:
                 for record in enhanced_data:
                     cursor.execute('''
                         INSERT INTO enhanced_data 
-                        (result_id, name, title, period, details, company, location)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        (result_id, name, title, period, details, company, location, hiring)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         result_id,
                         record.get('Name', ''),
@@ -139,7 +148,8 @@ class ResultsDatabase:
                         record.get('Period', ''),
                         record.get('Details', ''),
                         record.get('Company', ''),
-                        record.get('Location', '')
+                        record.get('Location', ''),
+                        record.get('Hiring?', '')
                     ))
                 
                 conn.commit()
@@ -157,7 +167,7 @@ class ResultsDatabase:
                 cursor = conn.cursor()
                 
                 cursor.execute('''
-                    SELECT name, title, period, details, company, location
+                    SELECT name, title, period, details, company, location, hiring
                     FROM enhanced_data 
                     WHERE result_id = ?
                     ORDER BY id
@@ -167,14 +177,15 @@ class ResultsDatabase:
                 if rows:
                     enhanced_data = []
                     for row in rows:
-                        name, title, period, details, company, location = row
+                        name, title, period, details, company, location, hiring = row
                         enhanced_data.append({
                             'Name': name or '',
                             'Title': title or '',
                             'Period': period or '',
                             'Details': details or '',
                             'Company': company or '',
-                            'Location': location or ''
+                            'Location': location or '',
+                            'Hiring?': hiring or ''
                         })
                     
                     logger.info(f"Retrieved {len(enhanced_data)} enhanced records for result ID: {result_id}")

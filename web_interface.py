@@ -396,7 +396,7 @@ def export_csv():
         import pandas as pd
         
         # Ensure all required columns exist
-        columns = ['Name', 'Title', 'Period', 'Details', 'Company', 'Location']
+        columns = ['Name', 'Title', 'Period', 'Details', 'Company', 'Location', 'Hiring?']
         
         df = pd.DataFrame(extracted_data)
         
@@ -485,7 +485,7 @@ def export_csv_session():
         import pandas as pd
         
         # Ensure all required columns exist
-        columns = ['Name', 'Title', 'Period', 'Details', 'Company', 'Location']
+        columns = ['Name', 'Title', 'Period', 'Details', 'Company', 'Location', 'Hiring?']
         
         df = pd.DataFrame(extracted_data)
         

@@ -38,7 +38,8 @@ def test_new_export_system():
                     "Period": "2w",
                     "Details": "Looking for remote work",
                     "Company": "Test Company",
-                    "Location": "Remote"
+                    "Location": "Remote",
+                    "Hiring?": "Yes"
                 },
                 {
                     "Name": "Jane Smith",
@@ -46,7 +47,8 @@ def test_new_export_system():
                     "Period": "1w",
                     "Details": "Seeking opportunities in SF",
                     "Company": "Tech Corp",
-                    "Location": "San Francisco"
+                    "Location": "San Francisco",
+                    "Hiring?": "Yes"
                 }
             ]
         }
@@ -62,7 +64,7 @@ def test_new_export_system():
             print(f"   CSV Content Preview: {csv_content[:100]}...")
             
             # Check if it has the right columns
-            if "Name,Title,Period,Details,Company,Location" in csv_content:
+            if "Name,Title,Period,Details,Company,Location,Hiring?" in csv_content:
                 print("✅ CSV has correct column headers")
             else:
                 print("❌ CSV missing expected columns")

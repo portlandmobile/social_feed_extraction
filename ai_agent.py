@@ -504,7 +504,7 @@ class LinkedInDataExtractor:
             return "No data to display"
         
         # Ensure all required columns exist
-        columns = ['Name', 'Title', 'Period', 'Details', 'Company', 'Location']
+        columns = ['Name', 'Title', 'Period', 'Details', 'Company', 'Location', 'Hiring?']
         
         # Calculate column widths
         col_widths = {}
@@ -633,20 +633,22 @@ class LinkedInDataExtractor:
             prompt = f"""
             You are an expert at analying job postings. First, let me clarify the steps before providing you with the data.
             
-                1. After receiving the CSV formatted data, covert them into a table  Add 3 columns - an unique ID for each row, "Company" and "Location".
-                2. For each row in the "Company" column, derive the company name from data in either "Name" or "Title" columns only.  Do not use Detais.If you can't find anything, write "N/A".
+                1. After receiving the CSV formatted data, covert them into a table  Add 3 columns - "Company", "Location", "Hiring?".
+                2. For each row in the "Company" column, derive the company name from data in either "Name" or "Title" columns only.  Do not use Details. If you can't find anything, write "N/A".
                 3. For each row in the "Location" column, derive the location from the data in the "Details" column:
                  3a) If the job is likely remote, write "Remote";
                    else If not remote, write the specific location (city, state, country) and make sure to double quote the entire string.
                    If you are not sure, write "Location not specified";
-                4. From the "Details" column, check to see if the post is really about hiring. If not, remove the row.
+                4. From the "Details" column, check to see if the post is really about hiring. If it is about hiring, write "Y" in the column "Hiring?". If not, write "N".
 
             Here is the input data in CSV format:
             {csv_input}
             
             Before returning the data:
             - The rows must be in the same order as the original data. You can use "Name" as reference.
-            - Remove column "Title", "Details" and keep only "Name", "Company", "Location", the unique ID column.
+            - Keep the "Name" column and add "Company", "Location", "Hiring?" columns.
+            - Remove columns "Title" and "Details".
+            - The final format should be: Name, Company, Location, Hiring?
             
             Then return all rows with the headers in CSV format.
             """
@@ -758,7 +760,7 @@ class LinkedInDataExtractor:
         """Merge AI enhanced data (ID, Name, Company, Location) with original data (Name, Title, Period, Details) by matching Name column."""
         if not ai_enhanced_data:
             self.logger.warning("No AI enhanced data to merge")
-            # Add Company and Location fields with default values to original data
+            # Add Company, Location, and Hiring? fields with default values to original data
             enhanced_original = []
             for item in original_data:
                 enhanced_item = {
@@ -767,7 +769,8 @@ class LinkedInDataExtractor:
                     'Period': item.get('Period', 'N/A'),
                     'Details': item.get('Details', 'N/A'),
                     'Company': 'N/A',
-                    'Location': 'N/A'
+                    'Location': 'N/A',
+                    'Hiring?': 'N/A'
                 }
                 enhanced_original.append(enhanced_item)
             return enhanced_original
@@ -778,6 +781,14 @@ class LinkedInDataExtractor:
             name = ai_item.get('Name', '').strip()
             if name:
                 ai_lookup[name] = ai_item
+        
+        # Debug: Log the AI enhanced names for comparison
+        self.logger.info(f"AI enhanced data names: {list(ai_lookup.keys())}")
+        self.logger.info(f"AI enhanced data sample: {ai_enhanced_data[0] if ai_enhanced_data else 'None'}")
+        
+        # Debug: Log the original data names for comparison
+        original_names = [item.get('Name', '').strip() for item in original_data]
+        self.logger.info(f"Original data names: {original_names}")
         
         # Merge the data
         merged_data = []
@@ -795,19 +806,21 @@ class LinkedInDataExtractor:
                     'Period': original_item.get('Period', 'N/A'),
                     'Details': original_item.get('Details', 'N/A'),
                     'Company': ai_match.get('Company', 'N/A'),
-                    'Location': ai_match.get('Location', 'N/A')
+                    'Location': ai_match.get('Location', 'N/A'),
+                    'Hiring?': ai_match.get('Hiring?', 'N/A')
                 }
                 merged_data.append(merged_item)
                 self.logger.debug(f"Successfully merged data for: {original_name}")
             else:
-                # No AI match found, use original data with default Company/Location
+                # No AI match found, use original data with default Company/Location/Hiring?
                 merged_item = {
                     'Name': original_item.get('Name', 'N/A'),
                     'Title': original_item.get('Title', 'N/A'),
                     'Period': original_item.get('Period', 'N/A'),
                     'Details': original_item.get('Details', 'N/A'),
                     'Company': 'N/A',
-                    'Location': 'N/A'
+                    'Location': 'N/A',
+                    'Hiring?': 'N/A'
                 }
                 merged_data.append(merged_item)
                 self.logger.warning(f"No AI enhancement match found for: {original_name}")
@@ -820,7 +833,7 @@ class LinkedInDataExtractor:
         if not data or not isinstance(data, list):
             return False
         
-        required_fields = ['Name', 'Title', 'Period', 'Details', 'Company', 'Location']
+        required_fields = ['Name', 'Title', 'Period', 'Details', 'Company', 'Location', 'Hiring?']
         
         for item in data:
             if not isinstance(item, dict):
@@ -833,6 +846,16 @@ class LinkedInDataExtractor:
         
         return True
     
+    def _ensure_required_fields(self, data: List[Dict[str, str]]) -> None:
+        """Ensure all required fields exist in the data."""
+        required_fields = ['Name', 'Title', 'Period', 'Details', 'Company', 'Location', 'Hiring?']
+        
+        for item in data:
+            for field in required_fields:
+                if field not in item:
+                    item[field] = 'N/A'
+                    logger.debug(f"Added missing field '{field}' with default value 'N/A'")
+    
     def _add_metadata(self, data: List[Dict[str, str]], extraction_method: str) -> List[Dict[str, str]]:
         """Add metadata to enhanced data."""
         for item in data:
@@ -840,7 +863,7 @@ class LinkedInDataExtractor:
             item['confidence'] = 0.9
             
             # Ensure all required fields exist
-            for field in ['Name', 'Title', 'Period', 'Details', 'Company', 'Location']:
+            for field in ['Name', 'Title', 'Period', 'Details', 'Company', 'Location', 'Hiring?']:
                 if field not in item:
                     item[field] = 'N/A'
         
@@ -875,7 +898,7 @@ class LinkedInDataExtractor:
                 csv_lines = [line.strip() for line in lines if line.strip() and ',' in line]
             
             # Filter out lines that don't look like CSV data
-            # AI models should return: ID, Name, Company, Location (4 columns)
+            # AI models should return: Name, Company, Location, Hiring? (4 columns)
             filtered_csv_lines = []
             for line in csv_lines:
                 if ',' in line and len(line.split(',')) >= 4:  # Should have at least 4 columns
@@ -903,7 +926,7 @@ class LinkedInDataExtractor:
             for row in csv_reader:
                 # Clean up the row data and ensure required fields exist
                 cleaned_row = {}
-                required_fields = ['ID', 'Name', 'Company', 'Location']
+                required_fields = ['Name', 'Company', 'Location', 'Hiring?']
                 
                 for field in required_fields:
                     if field in row and row[field]:
@@ -912,13 +935,13 @@ class LinkedInDataExtractor:
                         cleaned_row[field] = cleaned_value
                     else:
                         # Set default value for missing fields
-                        if field == 'ID':
-                            cleaned_row[field] = 'N/A'
-                        elif field == 'Name':
+                        if field == 'Name':
                             cleaned_row[field] = 'N/A'
                         elif field == 'Company':
                             cleaned_row[field] = 'N/A'
                         elif field == 'Location':
+                            cleaned_row[field] = 'N/A'
+                        elif field == 'Hiring?':
                             cleaned_row[field] = 'N/A'
                 
                 enhanced_data.append(cleaned_row)
@@ -960,14 +983,16 @@ class LinkedInDataExtractor:
                         logger.info(f"Enhanced data sample: {enhanced_data[0] if enhanced_data else 'None'}")
                         logger.info(f"Enhanced data has Company field: {'Company' in enhanced_data[0] if enhanced_data else False}")
                         logger.info(f"Enhanced data has Location field: {'Location' in enhanced_data[0] if enhanced_data else False}")
+                        logger.info(f"Enhanced data has Hiring? field: {'Hiring?' in enhanced_data[0] if enhanced_data else False}")
+                        logger.info(f"Enhanced data fields: {list(enhanced_data[0].keys()) if enhanced_data else 'None'}")
                         
 #                        logger.info(f"Full enhanced data: {enhanced_data}")
-                        # Verify that the data is actually enhanced (has Company and Location fields)
-                        if enhanced_data and len(enhanced_data) > 0 and 'Company' in enhanced_data[0] and 'Location' in enhanced_data[0]:
-                            logger.info("Enhanced data verified - contains Company and Location fields")
+                        # Verify that the data is actually enhanced (has Company, Location, and Hiring? fields)
+                        if enhanced_data and len(enhanced_data) > 0 and 'Company' in enhanced_data[0] and 'Location' in enhanced_data[0] and 'Hiring?' in enhanced_data[0]:
+                            logger.info("Enhanced data verified - contains Company, Location, and Hiring? fields")
                             extracted_data = enhanced_data
                         else:
-                            logger.warning("AI enhancement returned data but missing Company/Location fields, using traditional data")
+                            logger.warning("AI enhancement returned data but missing Company/Location/Hiring? fields, using traditional data")
                             extracted_data = enhanced_data
                     else:
                         logger.warning("AI enhancement failed, using traditional data only")
@@ -978,6 +1003,8 @@ class LinkedInDataExtractor:
                 logger.info(f"OpenAI client: {self.openai_client is not None}")
                 logger.info(f"Gemini client: {self.gemini_client is not None}")
             
+            # Ensure all required fields exist in the data
+            self._ensure_required_fields(extracted_data)
             self.extracted_data = extracted_data
             
             # Analyze the data

@@ -327,6 +327,7 @@
                                 <th>Details <small class="text-muted">(hover for preview, click ± to expand)</small></th>
                                 <th>Company</th>
                                 <th>Location</th>
+                                <th>Hiring?</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -362,6 +363,11 @@
                                 <td>
                                     <div class="text-truncate" title="{{ entry.Location }}">
                                         {{ entry.Location }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="text-truncate" title="{{ entry['Hiring?'] if entry['Hiring?'] else 'N/A' }}">
+                                        {{ entry['Hiring?'] if entry['Hiring?'] else 'N/A' }}
                                     </div>
                                 </td>
                             </tr>
