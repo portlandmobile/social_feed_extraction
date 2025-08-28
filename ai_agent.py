@@ -612,6 +612,7 @@ class LinkedInDataExtractor:
     
     def _enhance_with_gemini(self, traditional_data: List[Dict[str, str]]) -> List[Dict[str, str]]:
         """Enhance data using Google Gemini"""
+        logger.info(f"Inside Gemini enhancement")
         if not self.gemini_client:
             self.logger.warning("Gemini client not initialized. Skipping AI enhancement.")
             return None
@@ -638,6 +639,7 @@ class LinkedInDataExtractor:
                  3a) If the job is likely remote, write "Remote";
                    else If not remote, write the specific location (city, state, country) and make sure to double quote the entire string.
                    If you are not sure, write "Location not specified";
+                4. From the "Details" column, check to see if the post is really about hiring. If not, remove the row.
 
             Here is the input data in CSV format:
             {csv_input}
@@ -645,10 +647,10 @@ class LinkedInDataExtractor:
             Before returning the data:
             - The rows must be in the same order as the original data. You can use "Name" as reference.
             - Remove column "Title", "Details" and keep only "Name", "Company", "Location", the unique ID column.
-            After completing all these, the # of rows should be the same as the original data.  It shoudl be 71.  If not the same, please explain why and which are missing or added.  And how you can make the # of rows the same.
             
             Then return all rows with the headers in CSV format.
             """
+            #After completing all these, the # of rows should be the same as the original data.  It shoudl be 71.  If not the same, please explain why and which are missing or added.  And how you can make the # of rows the same.
             
 #            logger.info(f"Calling Gemini API to enhance {len(data_for_ai)} records (limited from {len(traditional_data)} total)")
             logger.info(f"Calling Gemini API to enhance records (limited from {len(traditional_data)} total)")
@@ -657,7 +659,7 @@ class LinkedInDataExtractor:
             # Parse the response content
             response_text = response.text
             logger.info(f"Gemini response content length: {len(response_text)} characters")
-#            logger.info(f"Gemini response: {response_text}")
+            logger.info(f"Gemini response: {response_text}")
             
             # Parse CSV response
             enhanced_data = self._parse_csv_response(response_text)
