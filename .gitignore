@@ -8,7 +8,7 @@ env/
 venv/
 .venv/
 .env
-
+.env_backup
 # OS files
 .DS_Store
 Thumbs.db
