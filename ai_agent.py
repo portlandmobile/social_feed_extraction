@@ -12,6 +12,10 @@ from typing import List, Dict, Any, Optional
 import logging
 import openai
 import google.generativeai as genai
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +33,12 @@ class LinkedInDataExtractor:
             ai_model: Which AI model to use ("chatgpt" or "gemini")
         """
         self.ai_model = ai_model.lower()
+        
+        # Debug logging
+        logger.info(f"Initializing AI agent with model: {ai_model}")
+        logger.info(f"OpenAI API key provided: {'Yes' if openai_api_key else 'No'}")
+        logger.info(f"Gemini API key provided: {'Yes' if gemini_api_key else 'No'}")
+        
         self.openai_client = openai.OpenAI(api_key=openai_api_key) if openai_api_key else None
         self.gemini_client = None
         
@@ -560,24 +570,26 @@ class LinkedInDataExtractor:
             
             # Create prompt for AI enhancement
             prompt = f"""
-            You are an expert at analying job postings. First, let me clarify the steps before providing you with the data.
+            You are an expert at analyzing LinkedIn job postings. Please process the following data and return it in CSV format.
             
-                1. After receiving the CSV formatted data, covert them into a table  Add 3 columns - an unique ID for each row, "Company" and "Location".
-                2. For each row in the "Company" column, derive the company name from data in either "Name" or "Title" columns only.  Do not use Detais.If you can't find anything, write "N/A".
-                3. For each row in the "Location" column, derive the location from the data in the "Details" column:
-                 3a) If the job is likely remote, write "Remote";
-                   else If not remote, write the specific location (city, state, country) and make sure to double quote the entire string.
-                   If you are not sure, write "Location not specified";
-
+            IMPORTANT: Return EXACTLY these 4 columns in this exact order:
+            Name,Company,Location,Hiring?
+            
+            Instructions:
+            1. For each row, extract the company name from the "Name" or "Title" columns only. If you can't find anything, write "N/A".
+            2. For the "Location" column:
+               - If the job is remote, write "Remote"
+               - If not remote, write the specific location (city, state, country) in quotes
+               - If unsure, write "Location not specified"
+            3. For the "Hiring?" column, determine if this is a hiring post and write "Y" for yes, "N" for no
+            4. Keep the exact same order as the input data
+            5. Do NOT add any extra columns like ID
+            6. Return ONLY the CSV with headers: Name,Company,Location,Hiring?
+            
             Here is the input data in CSV format:
             {csv_input}
             
-            Before returning the data:
-            - The rows must be in the same order as the original data. You can use "Name" as reference.
-            - Remove column "Title", "Details" and keep only "Name", "Company", "Location", the unique ID column.
-            After completing all these, the # of rows should be the same as the original data.  It shoudl be 71.  If not the same, please explain why and which are missing or added.  And how you can make the # of rows the same.
-            
-            Then return all rows with the headers in CSV format.
+            Return the CSV data with exactly these headers: Name,Company,Location,Hiring?
             """
             
 #            logger.info(f"Calling OpenAI API to enhance {len(data_for_ai)} records (limited from {len(traditional_data)} total)")
@@ -631,26 +643,26 @@ class LinkedInDataExtractor:
             
             # Create prompt for AI enhancement
             prompt = f"""
-            You are an expert at analying job postings. First, let me clarify the steps before providing you with the data.
+            You are an expert at analyzing job postings. Please process the following data and return it in CSV format.
             
-                1. After receiving the CSV formatted data, covert them into a table  Add 3 columns - "Company", "Location", "Hiring?".
-                2. For each row in the "Company" column, derive the company name from data in either "Name" or "Title" columns only.  Do not use Details. If you can't find anything, write "N/A".
-                3. For each row in the "Location" column, derive the location from the data in the "Details" column:
-                 3a) If the job is likely remote, write "Remote";
-                   else If not remote, write the specific location (city, state, country) and make sure to double quote the entire string.
-                   If you are not sure, write "Location not specified";
-                4. From the "Details" column, check to see if the post is really about hiring. If it is about hiring, write "Y" in the column "Hiring?". If not, write "N".
-
+            IMPORTANT: Return EXACTLY these 4 columns in this exact order:
+            Name,Company,Location,Hiring?
+            
+            Instructions:
+            1. For each row, extract the company name from the "Name" or "Title" columns only. If you can't find anything, write "N/A".
+            2. For the "Location" column:
+               - If the job is remote, write "Remote"
+               - If not remote, write the specific location (city, state, country) in quotes
+               - If unsure, write "Location not specified"
+            3. For the "Hiring?" column, determine if this is a hiring post and write "Y" for yes, "N" for no
+            4. Keep the exact same order as the input data
+            5. Do NOT add any extra columns like ID
+            6. Return ONLY the CSV with headers: Name,Company,Location,Hiring?
+            
             Here is the input data in CSV format:
             {csv_input}
             
-            Before returning the data:
-            - The rows must be in the same order as the original data. You can use "Name" as reference.
-            - Keep the "Name" column and add "Company", "Location", "Hiring?" columns.
-            - Remove columns "Title" and "Details".
-            - The final format should be: Name, Company, Location, Hiring?
-            
-            Then return all rows with the headers in CSV format.
+            Return the CSV data with exactly these headers: Name,Company,Location,Hiring?
             """
             #After completing all these, the # of rows should be the same as the original data.  It shoudl be 71.  If not the same, please explain why and which are missing or added.  And how you can make the # of rows the same.
             
@@ -667,6 +679,8 @@ class LinkedInDataExtractor:
             enhanced_data = self._parse_csv_response(response_text)
             if enhanced_data:
                 logger.info(f"Successfully parsed Gemini CSV response with {len(enhanced_data)} records")
+                logger.info(f"First record fields: {list(enhanced_data[0].keys()) if enhanced_data else 'None'}")
+                logger.info(f"Sample records: {enhanced_data[:3] if enhanced_data else 'None'}")
                 # Merge AI enhanced data with original data
                 merged_data = self._merge_ai_enhancement_with_original(traditional_data, enhanced_data)
                 return self._add_metadata(merged_data, 'traditional+ai_gemini')
@@ -790,6 +804,10 @@ class LinkedInDataExtractor:
         original_names = [item.get('Name', '').strip() for item in original_data]
         self.logger.info(f"Original data names: {original_names}")
         
+        # Debug: Show first few names from each for comparison
+        self.logger.info(f"First 5 AI names: {list(ai_lookup.keys())[:5]}")
+        self.logger.info(f"First 5 original names: {original_names[:5]}")
+        
         # Merge the data
         merged_data = []
         for original_item in original_data:
@@ -899,6 +917,7 @@ class LinkedInDataExtractor:
             
             # Filter out lines that don't look like CSV data
             # AI models should return: Name, Company, Location, Hiring? (4 columns)
+            # But Gemini might return: ID, Name, Company, Location, Hiring? (5 columns)
             filtered_csv_lines = []
             for line in csv_lines:
                 if ',' in line and len(line.split(',')) >= 4:  # Should have at least 4 columns
@@ -917,13 +936,19 @@ class LinkedInDataExtractor:
             
             csv_content = '\n'.join(csv_lines)
             logger.info(f"Parsing CSV content: {csv_content[:200]}...")
+            logger.info(f"CSV headers found: {csv_lines[0] if csv_lines else 'None'}")
             
             # Use StringIO to parse CSV
             csv_file = StringIO(csv_content)
             csv_reader = csv.DictReader(csv_file)
+            logger.info(f"CSV reader fieldnames: {csv_reader.fieldnames}")
             
             enhanced_data = []
-            for row in csv_reader:
+            for i, row in enumerate(csv_reader):
+                # Debug: Log the first few rows
+                if i < 3:
+                    logger.info(f"Row {i}: {dict(row)}")
+                
                 # Clean up the row data and ensure required fields exist
                 cleaned_row = {}
                 required_fields = ['Name', 'Company', 'Location', 'Hiring?']

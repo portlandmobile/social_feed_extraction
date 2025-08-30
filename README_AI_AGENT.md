@@ -172,8 +172,8 @@ The AI agent now supports both OpenAI ChatGPT and Google Gemini for enhanced par
 
 #### Usage Options
 1. **Web Interface**: Select "AI-Powered Parsing" and choose your preferred model
-2. **Environment Variables**: Set `OPENAI_API_KEY` and/or `GOOGLE_API_KEY` in your `.env` file
-3. **Direct Initialization**: Pass API keys to `LinkedInDataExtractor(openai_api_key="...", gemini_api_key="...", ai_model="...")`
+2. **Environment Variables**: Set `OPENAI_API_KEY` and/or `GEMINI_API_KEY` in your environment
+3. **Production**: Use Google Cloud Run environment variables for secure deployment
 
 #### Cost Information
 - **ChatGPT**: ~2-5K tokens per typical LinkedIn MHTML file (~$0.06 - $0.15 per file)
@@ -181,9 +181,10 @@ The AI agent now supports both OpenAI ChatGPT and Google Gemini for enhanced par
 - **Model Selection**: Choose based on your budget and quality requirements
 
 #### Security Notes
-- API keys are never stored or logged
+- API keys are never stored, logged, or visible to users
 - All processing is done through secure APIs
-- Consider using environment variables for production deployments
+- Environment variables provide secure key management
+- Production deployments use Google Cloud's encrypted environment variables
 
 For detailed setup instructions, see `openai_setup.md`.
 

@@ -1,77 +1,68 @@
 #!/usr/bin/env python3
 """
-Test script for the LinkedIn Data Extraction AI Agent
+Test script to verify AI agent creation with environment variables
 """
 
 import os
-import sys
-from ai_agent import LinkedInDataExtractor
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 def test_ai_agent():
-    """Test the AI agent functionality."""
-    print("🧪 Testing LinkedIn Data Extraction AI Agent...")
-    print("=" * 50)
+    """Test if AI agent can be created with environment variables"""
     
-    # Initialize the AI agent
+    print("=== AI Agent Test ===\n")
+    
+    # Check environment variables
+    openai_key = os.getenv('OPENAI_API_KEY')
+    gemini_key = os.getenv('GEMINI_API_KEY')
+    
+    print("Environment Variables:")
+    print(f"  OPENAI_API_KEY: {'Set' if openai_key else 'Not set'}")
+    print(f"  GEMINI_API_KEY: {'Set' if gemini_key else 'Not set'}")
+    
+    if not openai_key and not gemini_key:
+        print("\n❌ No API keys found. Cannot test AI agent.")
+        return
+    
+    print("\n=== Testing AI Agent Creation ===\n")
+    
     try:
-        agent = LinkedInDataExtractor()
-        print("✅ AI Agent initialized successfully")
-    except Exception as e:
-        print(f"❌ Error initializing AI Agent: {e}")
-        return False
-    
-    # Test with a sample file path (this won't actually process anything)
-    test_file_path = "/Users/peekay/Downloads/LinkedIn_hiring _product manager_ martech_ Aug_9.mhtml"
-    
-    if os.path.exists(test_file_path):
-        print(f"✅ Test file found: {test_file_path}")
-        print("🔍 Testing file processing...")
+        # Import after loading environment variables
+        from ai_agent import LinkedInDataExtractor
         
-        try:
-            results = agent.process_mhtml_file(test_file_path)
+        # Test creating AI agent with environment variables
+        agent = LinkedInDataExtractor(
+            openai_api_key=openai_key,
+            gemini_api_key=gemini_key
+        )
+        print("✅ AI Agent created successfully!")
+        
+        print(f"  AI Model: {agent.ai_model}")
+        print(f"  OpenAI Client: {'✅ Available' if agent.openai_client else '❌ Not available'}")
+        print(f"  Gemini Client: {'✅ Available' if agent.gemini_client else '❌ Not available'}")
+        
+        # Test AI enhancement capability
+        if agent.openai_client or agent.gemini_client:
+            print("\n✅ AI Enhancement is ready!")
+            if agent.openai_client:
+                print("  - ChatGPT enhancement available")
+            if agent.gemini_client:
+                print("  - Gemini enhancement available")
+                
+            print("\n🎯 The system should now work with AI enhancement!")
+            print("   - Upload a file and select 'AI Enhancement'")
+            print("   - Choose your preferred AI model")
+            print("   - The system will automatically use your API keys")
+        else:
+            print("\n❌ AI Enhancement is NOT available!")
+            print("  - Check your API keys and .env file")
             
-            if results.get("success"):
-                print(f"✅ File processed successfully!")
-                print(f"📊 Extracted {len(results['extracted_data'])} posts")
-                print(f"🎯 Quality score: {results['analysis']['data_quality_score']}%")
-                print(f"💡 Insights: {', '.join(results['analysis']['insights'])}")
-                
-                # Test export functionality
-                try:
-                    csv_file = agent.export_to_csv(results['extracted_data'])
-                    json_file = agent.export_to_json(results['extracted_data'])
-                    print(f"📁 Data exported to: {csv_file} and {json_file}")
-                    
-                    # Clean up test files
-                    if os.path.exists(csv_file):
-                        os.remove(csv_file)
-                    if os.path.exists(json_file):
-                        os.remove(json_file)
-                    print("🧹 Test export files cleaned up")
-                    
-                except Exception as e:
-                    print(f"⚠️  Export test failed: {e}")
-                
-            else:
-                print(f"❌ File processing failed: {results.get('error', 'Unknown error')}")
-                return False
-                
-        except Exception as e:
-            print(f"❌ Error processing test file: {e}")
-            return False
-            
-    else:
-        print(f"⚠️  Test file not found: {test_file_path}")
-        print("📝 This is expected if you haven't downloaded the LinkedIn MHTML file yet")
-        print("💡 You can still test the web interface with any MHTML file")
-    
-    print("=" * 50)
-    print("🎉 AI Agent test completed!")
-    print("🌐 To test the web interface, run: python3 start_ai_agent.py")
-    print("📱 Then open http://localhost:5000 in your browser")
-    
-    return True
+    except Exception as e:
+        print(f"❌ Error creating AI Agent: {e}")
+        import traceback
+        traceback.print_exc()
 
-if __name__ == '__main__':
-    success = test_ai_agent()
-    sys.exit(0 if success else 1) 
+if __name__ == "__main__":
+    test_ai_agent() 

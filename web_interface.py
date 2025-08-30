@@ -6,6 +6,10 @@ from datetime import datetime
 import json
 from ai_agent import LinkedInDataExtractor
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -34,9 +38,14 @@ def cleanup_temp_file(filepath):
         logger.warning(f"Failed to cleanup temporary file {filepath}: {e}")
 
 # Initialize the AI agent (will be recreated for each request)
-def create_ai_agent(openai_api_key=None, gemini_api_key=None, ai_model="chatgpt"):
-    """Create a fresh AI agent instance for each request."""
+def create_ai_agent(ai_model="chatgpt"):
+    """Create a fresh AI agent instance for each request using environment variables."""
     from ai_agent import LinkedInDataExtractor
+    
+    # Get API keys from environment variables
+    openai_api_key = os.getenv('OPENAI_API_KEY')
+    gemini_api_key = os.getenv('GEMINI_API_KEY')
+    
     return LinkedInDataExtractor(
         openai_api_key=openai_api_key, 
         gemini_api_key=gemini_api_key,
@@ -94,22 +103,26 @@ def upload_file():
         
         file.save(temp_path)
         
-        # Get parsing method and API keys
+        # Get parsing method and AI model
         parsing_method = request.form.get('parsing_method', 'traditional')
-        openai_api_key = request.form.get('openai_api_key', '')
-        gemini_api_key = request.form.get('gemini_api_key', '')
         ai_model = request.form.get('ai_model', 'chatgpt')
         
         # Create a fresh AI agent instance for each request
         ai_agent_instance = create_ai_agent(
-            openai_api_key=openai_api_key if parsing_method == 'ai' and ai_model == 'chatgpt' else None,
-            gemini_api_key=gemini_api_key if parsing_method == 'ai' and ai_model == 'gemini' else None,
             ai_model=ai_model if parsing_method == 'ai' else 'chatgpt'
         )
         
         # Process the file with chosen method
         logger.info(f"Processing uploaded file: {temp_path} with {parsing_method} parsing using {ai_model}")
         logger.info(f"File size: {os.path.getsize(temp_path)} bytes")
+        
+        # Debug: Check if AI clients are available
+        logger.info(f"AI enhancement requested: {parsing_method == 'ai'}")
+        logger.info(f"OpenAI client available: {ai_agent_instance.openai_client is not None}")
+        logger.info(f"Gemini client available: {ai_agent_instance.gemini_client is not None}")
+        logger.info(f"Environment variables - OPENAI_API_KEY: {'Set' if os.getenv('OPENAI_API_KEY') else 'Not set'}")
+        logger.info(f"Environment variables - GEMINI_API_KEY: {'Set' if os.getenv('GEMINI_API_KEY') else 'Not set'}")
+        
         results = ai_agent_instance.process_mhtml_file(temp_path, use_ai=(parsing_method == 'ai'), ai_model=ai_model)
         #logger.info(f"Processing complete. Results: {results}")
         logger.info(f"Results success: {results.get('success')}")
@@ -351,16 +364,12 @@ def api_process():
         
         file.save(temp_path)
         
-        # Get API keys and model from request
-        openai_api_key = request.form.get('openai_api_key', '')
-        gemini_api_key = request.form.get('gemini_api_key', '')
+        # Get AI model from request
         ai_model = request.form.get('ai_model', 'chatgpt')
         use_ai = request.form.get('use_ai', 'false').lower() == 'true'
         
         # Process the file with a fresh AI agent instance
         ai_agent_instance = create_ai_agent(
-            openai_api_key=openai_api_key if use_ai and ai_model == 'chatgpt' else None,
-            gemini_api_key=gemini_api_key if use_ai and ai_model == 'gemini' else None,
             ai_model=ai_model if use_ai else 'chatgpt'
         )
         results = ai_agent_instance.process_mhtml_file(temp_path, use_ai=use_ai, ai_model=ai_model)

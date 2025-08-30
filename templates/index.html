@@ -230,18 +230,14 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- API Key Inputs -->
-                                    <div id="apiKeyInputs" class="mt-3" style="display: none;">
-                                        <div id="openaiKeyInput" class="mb-3">
-                                            <label for="openaiKey" class="form-label">OpenAI API Key:</label>
-                                            <input type="password" class="form-control" id="openaiKey" name="openai_api_key" placeholder="Enter your OpenAI API key">
-                                            <small class="form-text text-muted">Your API key is used only for this session and is not stored.</small>
+                                    <!-- AI Enhancement Info -->
+                                    <div id="aiEnhancementInfo" class="mt-3" style="display: none;">
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle"></i>
+                                            <strong>AI Enhancement Enabled</strong><br>
+                                            <small>Your file will be processed using AI-powered enhancement for better data extraction.</small>
                                         </div>
-                                        <div id="geminiKeyInput" class="mb-3" style="display: none;">
-                                            <label for="geminiKey" class="form-label">Google API Key:</label>
-                                            <input type="password" class="form-control" id="geminiKey" name="gemini_api_key" placeholder="Enter your Google API key">
-                                            <small class="form-text text-muted">Your API key is used only for this session and is not stored.</small>
-                                        </div>
+
                                     </div>
                                 </div>
                             </div>
@@ -325,11 +321,9 @@
         const loading = document.getElementById('loading');
         const progressFill = document.getElementById('progressFill');
         const parsingOptions = document.getElementById('parsingOptions');
-        const apiKeyInputs = document.getElementById('apiKeyInputs');
+        const aiEnhancementInfo = document.getElementById('aiEnhancementInfo');
         const aiParsingRadio = document.getElementById('aiParsing');
         const aiModelSelection = document.getElementById('aiModelSelection');
-        const openaiKeyInput = document.getElementById('openaiKeyInput');
-        const geminiKeyInput = document.getElementById('geminiKeyInput');
         
         let selectedFile = null;
         
@@ -376,26 +370,19 @@
         // Handle parsing method selection
         aiParsingRadio.addEventListener('change', () => {
             if (aiParsingRadio.checked) {
-                apiKeyInputs.style.display = 'block';
+                aiEnhancementInfo.style.display = 'block';
                 aiModelSelection.style.display = 'block';
             } else {
-                apiKeyInputs.style.display = 'none';
+                aiEnhancementInfo.style.display = 'none';
                 aiModelSelection.style.display = 'none';
             }
         });
 
-        // Handle AI model selection
+        // Handle AI model selection (no API key inputs needed)
         document.querySelectorAll('input[name="aiModel"]').forEach(radio => {
             radio.addEventListener('change', () => {
-                if (radio.checked) {
-                    if (radio.value === 'chatgpt') {
-                        geminiKeyInput.style.display = 'none';
-                        openaiKeyInput.style.display = 'block';
-                    } else if (radio.value === 'gemini') {
-                        openaiKeyInput.style.display = 'none';
-                        geminiKeyInput.style.display = 'block';
-                    }
-                }
+                // Model selection is handled automatically
+                console.log('AI model selected:', radio.value);
             });
         });
         
@@ -439,22 +426,8 @@
         uploadBtn.addEventListener('click', async () => {
             if (!selectedFile) return;
             
-            // Get parsing method and API key
+            // Get parsing method
             const parsingMethod = document.querySelector('input[name="parsingMethod"]:checked').value;
-            const openaiKey = document.getElementById('openaiKey').value;
-            const geminiKey = document.getElementById('geminiKey').value;
-            
-            // Validate AI parsing requirements
-            if (parsingMethod === 'ai') {
-                if (document.querySelector('input[name="aiModel"]:checked').value === 'chatgpt' && !openaiKey.trim()) {
-                    alert('Please enter your OpenAI API key for AI-powered parsing.');
-                    return;
-                }
-                if (document.querySelector('input[name="aiModel"]:checked').value === 'gemini' && !geminiKey.trim()) {
-                    alert('Please enter your Google API key for AI-powered parsing.');
-                    return;
-                }
-            }
             
             const formData = new FormData();
             formData.append('file', selectedFile);
@@ -462,12 +435,6 @@
             if (parsingMethod === 'ai') {
                 const aiModel = document.querySelector('input[name="aiModel"]:checked').value;
                 formData.append('ai_model', aiModel);
-                if (aiModel === 'chatgpt' && openaiKey.trim()) {
-                    formData.append('openai_api_key', openaiKey);
-                }
-                if (aiModel === 'gemini' && geminiKey.trim()) {
-                    formData.append('gemini_api_key', geminiKey);
-                }
             }
             
             // Show loading state
