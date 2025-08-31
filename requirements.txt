@@ -2,8 +2,8 @@ Flask>=3.0.0
 Werkzeug>=3.0.0
 beautifulsoup4==4.12.2
 pandas>=2.2.0
-lxml==4.9.3
-html5lib==1.1
+# lxml>=4.9.0  # Commented out due to compilation issues in Cloud Run
+# html5lib==1.1  # Commented out - not needed with html.parser
 openai>=1.0.0
 google-generativeai==0.3.2
 python-dotenv==1.1.1
