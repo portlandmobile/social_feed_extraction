@@ -408,6 +408,15 @@
             parsingOptions.style.display = 'block';
             uploadBtn.style.display = 'inline-block';
             
+            // Change button text to "Replace the current file"
+            chooseFileBtn.innerHTML = '<i class="fas fa-exchange-alt"></i> Replace the current file';
+            
+            // Set defaults: AI Enhancement with Gemini
+            document.getElementById('aiParsing').checked = true;
+            document.getElementById('geminiModel').checked = true;
+            aiEnhancementInfo.style.display = 'block';
+            aiModelSelection.style.display = 'block';
+            
             // Log for debugging
             console.log('File selected:', file.name, 'Size:', file.size);
         }
@@ -420,6 +429,9 @@
             uploadBtn.style.display = 'none';
             loading.style.display = 'none';
             progressFill.style.width = '0%';
+            
+            // Reset button text back to "Choose File"
+            chooseFileBtn.innerHTML = '<i class="fas fa-folder-open"></i> Choose File';
         }
         
         // Upload button click

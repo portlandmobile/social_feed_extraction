@@ -124,9 +124,12 @@
             padding: 1.5rem;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
             overflow-x: auto;
+            width: 100%;
         }
         
         .table {
+            width: max-content;
+            min-width: 100%;
             margin-bottom: 0;
         }
         
@@ -166,6 +169,60 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+        
+        /* Column width adjustments */
+        .table th:nth-child(1), /* Name column */
+        .table td:nth-child(1) {
+            width: 150px;
+            max-width: 150px;
+        }
+        
+        .table th:nth-child(2), /* Title column */
+        .table td:nth-child(2) {
+            width: 200px;
+            max-width: 200px;
+        }
+        
+        .table th:nth-child(3), /* Period column */
+        .table td:nth-child(3) {
+            width: 80px;
+            max-width: 80px;
+        }
+        
+        .table th:nth-child(4), /* Details column */
+        .table td:nth-child(4) {
+            width: 450px;
+            min-width: 450px;
+        }
+        
+        .table td:nth-child(4) .text-truncate, /* Details column text */
+        .table td:nth-child(4) .details-content {
+            max-width: 400px;
+            white-space: normal;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.4;
+        }
+        
+        .table th:nth-child(5), /* Company column */
+        .table td:nth-child(5) {
+            width: 100px;
+            max-width: 100px;
+        }
+        
+        .table th:nth-child(6), /* Location column */
+        .table td:nth-child(6) {
+            width: 100px;
+            max-width: 100px;
+        }
+        
+        .table th:nth-child(7), /* Hiring? column */
+        .table td:nth-child(7) {
+            width: 80px;
+            max-width: 80px;
         }
         
         .expandable {
@@ -243,8 +300,12 @@
                 <div class="mt-3 mb-3">
                     <span class="badge bg-info fs-6">
                         <i class="fas fa-robot"></i> 
-                        {% if data.results.analysis.extraction_method == 'ai' %}
-                            AI-Powered Parsing (GPT-4)
+                        {% if 'ai_chatgpt' in data.results.analysis.extraction_method %}
+                            Traditional + AI Enhancement (ChatGPT)
+                        {% elif 'ai_gemini' in data.results.analysis.extraction_method %}
+                            Traditional + AI Enhancement (Gemini)
+                        {% elif data.results.analysis.extraction_method == 'ai' %}
+                            AI-Powered Parsing
                         {% else %}
                             Traditional Rule-Based Parsing
                         {% endif %}

@@ -11,6 +11,11 @@ from web_interface import app
 # Load environment variables
 load_dotenv()
 
-# For Cloud Run, we just need to export the app
-# The container runtime will handle starting it
-# This file serves as the entry point that Cloud Run can find
+if __name__ == "__main__":
+    # For local development, run the Flask app
+    # For Cloud Run, this file just exports the app
+    port = int(os.environ.get("PORT", 5001))
+    print(f"🚀 Starting LinkedIn Data Extraction AI Agent...")
+    print(f"📱 Open your browser and go to: http://localhost:{port}")
+    print(f"⏹️  Press Ctrl+C to stop the server")
+    app.run(debug=True, host="0.0.0.0", port=port)
