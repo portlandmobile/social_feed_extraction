@@ -654,7 +654,7 @@ class LinkedInDataExtractor:
                - If the job is remote, write "Remote"
                - If not remote, write the specific location (city, state, country) in quotes
                - If unsure, write "Location not specified"
-            3. For the "Hiring?" column, determine if this is a hiring post and write "Y" for yes, "N" for no
+            3. For the "Hiring?" column, determine if this is truly a hiring post. When the first or two line mentions hiring engineer or developer, then it should be a "N". Write "Y" for yes, "N" for no. 
             4. Keep the exact same order as the input data
             5. Do NOT add any extra columns like ID
             6. Return ONLY the CSV with headers: Name,Company,Location,Hiring?

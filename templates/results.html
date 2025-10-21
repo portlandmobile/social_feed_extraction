@@ -207,6 +207,13 @@
             line-height: 1.4;
         }
         
+        .table td:nth-child(4) .full-text {
+            display: block;
+            -webkit-line-clamp: unset;
+            -webkit-box-orient: unset;
+            max-width: none;
+        }
+        
         .table th:nth-child(5), /* Company column */
         .table td:nth-child(5) {
             width: 100px;
@@ -378,6 +385,17 @@
                 <h4 class="mb-3"><i class="fas fa-table"></i> Extracted Data</h4>
                 
                 {% if data.results.extracted_data %}
+                <!-- Location Filter -->
+                <div class="mb-3 d-flex justify-content-end align-items-center">
+                    <div>
+                        <label for="locationFilter" class="form-label mb-1"><i class="fas fa-filter"></i> Filter by Location:</label>
+                        <select id="locationFilter" class="form-select" style="max-width: 300px;">
+                            <option value="all">All Locations</option>
+                        </select>
+                        <small class="text-muted">Showing <span id="rowCount">{{ data.results.extracted_data | length }}</span> of {{ data.results.extracted_data | length }} records</small>
+                    </div>
+                </div>
+                
                 <div class="table-container">
                     <table class="table">
                         <thead>
@@ -595,7 +613,70 @@
                     hideTooltip();
                 }
             });
+            
+            // Initialize location filter
+            initializeLocationFilter();
         });
+        
+        function initializeLocationFilter() {
+            const locationFilter = document.getElementById('locationFilter');
+            if (!locationFilter) return;
+            
+            const rows = document.querySelectorAll('.table tbody tr');
+            const locations = new Set();
+            
+            // Collect unique locations
+            rows.forEach(row => {
+                const locationCell = row.cells[5]; // Location is the 6th column (index 5)
+                if (locationCell) {
+                    const location = locationCell.textContent.trim();
+                    if (location && location !== 'N/A' && location !== '') {
+                        locations.add(location);
+                    }
+                }
+            });
+            
+            // Sort locations alphabetically
+            const sortedLocations = Array.from(locations).sort();
+            
+            // Populate filter dropdown
+            sortedLocations.forEach(location => {
+                const option = document.createElement('option');
+                option.value = location;
+                option.textContent = location;
+                locationFilter.appendChild(option);
+            });
+            
+            // Add event listener for filtering
+            locationFilter.addEventListener('change', function() {
+                filterByLocation(this.value);
+            });
+        }
+        
+        function filterByLocation(selectedLocation) {
+            const rows = document.querySelectorAll('.table tbody tr');
+            const rowCountSpan = document.getElementById('rowCount');
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                const locationCell = row.cells[5]; // Location is the 6th column (index 5)
+                if (locationCell) {
+                    const location = locationCell.textContent.trim();
+                    
+                    if (selectedLocation === 'all' || location === selectedLocation) {
+                        row.style.display = '';
+                        visibleCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+            
+            // Update row count
+            if (rowCountSpan) {
+                rowCountSpan.textContent = visibleCount;
+            }
+        }
     </script>
 </body>
 </html> 
